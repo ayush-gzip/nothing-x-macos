@@ -14,7 +14,7 @@ struct ConnectView: View {
     @State var topButtonText: String? = "Retry"
     @State var bottomButtonText: String? = "Cancel"
     
-    @StateObject private var viewModel = ConnectViewViewModel(nothingRepository: NothingRepositoryImpl.shared, nothingService: NothingServiceImpl.shared, bluetoothService: BluetoothServiceImpl())
+    @StateObject private var viewModel = ConnectViewViewModel(bluetoothService: BluetoothServiceImpl())
     
     @EnvironmentObject var mainViewModel: MainViewViewModel
     
@@ -26,7 +26,7 @@ struct ConnectView: View {
             
             // ear (1)
             
-            if viewModel.savedDevice?.isHeadphonePro != true {
+            if mainViewModel.selectedDevice?.isHeadphonePro != true {
                 HStack {
                     DeviceNameDotTextView()
                     Spacer()
@@ -40,7 +40,7 @@ struct ConnectView: View {
             VStack {
                 
                 HStack {
-                    if viewModel.savedDevice?.isHeadphonePro == true {
+                    if mainViewModel.selectedDevice?.isHeadphonePro == true {
                         Text("CMF Headphone Pro").font(.system(size: 12, weight: .medium)).foregroundColor(.white)
                             .padding(.leading, 14)
                     }
@@ -54,7 +54,7 @@ struct ConnectView: View {
                 
                 VStack {
                     // Ear 1 Image
-                    if viewModel.savedDevice?.isHeadphonePro == true {
+                    if mainViewModel.selectedDevice?.isHeadphonePro == true {
                         Image("cmf_headphone_pro")
                             .resizable()
                             .scaledToFit()
@@ -71,7 +71,7 @@ struct ConnectView: View {
                     }
                     Spacer(minLength: 15)
                     
-                    if viewModel.isLoading {
+                    if mainViewModel.isConnecting {
                         // Show loading spinner
                         ProgressView() // You can customize the text
                             .progressViewStyle(CircularProgressViewStyle())
@@ -85,7 +85,7 @@ struct ConnectView: View {
                         Button("RECONNECT") {
                             viewModel.checkBluetoothStatus()
                             if viewModel.isBluetoothOn {
-                                viewModel.connect()
+                                mainViewModel.reconnectSelectedDevice()
                             } else {
                                 mainViewModel.navigateToBluetoothIsOff()
                             }
@@ -114,7 +114,8 @@ struct ConnectView: View {
                     .zIndex(2)
                 
                 ModalSheetView(isPresented: $viewModel.isFailedToConnectPresented, title: $title, text: $text, topButtonText: $topButtonText, bottomButtonText: $bottomButtonText, action: {
-                    viewModel.retryConnect()
+                    viewModel.isFailedToConnectPresented = false
+                    mainViewModel.reconnectSelectedDevice()
                 }, onCancelAction: {})
                 .animation(.easeInOut, value: viewModel.isFailedToConnectPresented) // Animate the appearance
                 .offset(y: viewModel.isFailedToConnectPresented ? 0 : 180) // Slide in from the bottom
@@ -126,7 +127,7 @@ struct ConnectView: View {
         
         .padding(.bottom, 0)
         .background(.black)
-        .frame(width: viewModel.savedDevice?.isHeadphonePro == true ? 280 : 250, height: viewModel.savedDevice?.isHeadphonePro == true ? 340 : 230)
+        .frame(width: mainViewModel.selectedDevice?.isHeadphonePro == true ? 280 : 250, height: mainViewModel.selectedDevice?.isHeadphonePro == true ? 340 : 230)
         .navigationBarBackButtonHidden(true)
         
     }

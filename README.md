@@ -1,77 +1,105 @@
-# Nothing X MacOS [Unofficial]
+# Nothing X for macOS
 
-This is an unofficial companion app for Nothing Ear (1) and CMF Headphone Pro on macOS. The Nothing X iOS app inspired it.
+An unofficial menu bar app for Nothing Ear (1) and CMF Headphone Pro. View battery levels and change noise control and EQ settings from your Mac.
 
-> Note: The app is under early development. Ear (1) was tested by the original developers. CMF Headphone Pro device communication was tested locally on firmware 1.0.1.49. Other models are not verified.
+This project is in early development and is not affiliated with Nothing.
 
-## CMF Headphone Pro
+## Device support
 
-The app uses the native Bluetooth Low Energy FD90 control service. The headphones on the test Mac advertised RFCOMM channel 17, but that connection did not complete. BLE connected and returned device data.
+| Device | Status |
+| --- | --- |
+| Nothing Ear (1) | Tested by the original developers. |
+| CMF Headphone Pro | Device communication tested on firmware `1.0.1.49`. |
+| Other models | Not verified. |
 
-Implemented:
-- One headphone battery level and charging status.
+### Nothing Ear (1) features
+
+The original Ear (1) interface remains available: left and right battery levels, noise control, EQ, earbud controls, in-ear detection, low lag mode, and Find My Earbuds. Select a saved Ear (1) from **Devices** to show its controls.
+
+### CMF Headphone Pro features
+
+- Battery level and charging status.
+- ANC: Low, Medium, High, and Adaptive.
+- Ambient sound and noise control Off.
+- EQ: Balanced, More bass, More treble, and Voice.
 - Device name, serial number, and firmware version.
-- Noise control: ANC Low, Medium, High, and Adaptive; Ambient and Off.
-- EQ presets: Balanced, More bass, More treble, and Voice.
-- CMF Headphone Pro artwork and a Nothing logo with one battery value in the menu bar.
-- Automatic control connection when macOS reports that the saved headphones connected. Opening the app does not initiate a connection; use Reconnect if they were already connected before app startup.
+- Nothing menu bar logo with battery percentage.
+- Automatic reconnect when macOS connects the selected saved device.
 
-The app hides earbud gesture controls and advanced settings for this model. Custom EQ, genre presets, sound calibration, and firmware updates are not implemented. Presets that the app cannot display do not appear as Balanced.
+**Not implemented for this model:** earbud gestures, advanced settings, custom EQ, genre presets, sound calibration, and firmware updates. An unsupported EQ preset is not shown as Balanced.
 
-Keep the Bluetooth name `CMF Headphone Pro` for model detection. This connection path selects one connected headphone with that name; it does not select between several headphones with the same name.
+## Get started
 
-### Device check
+Requirements: macOS 13 or later and Xcode to build the app.
 
-With CMF Headphone Pro connected to the Mac, run:
+1. Open `Nothing X MacOS.xcodeproj` in Xcode. Select the **Nothing X MacOS** scheme, then build and run it.
+2. Pair the headphones with your Mac in Bluetooth settings.
+3. Open the app from the menu bar. Use discovery to select and set up your device.
+4. Use **Devices → Set up another device** to add another device. Use **Devices** to select any saved device. The app remembers your selection.
+
+For CMF Headphone Pro, keep the Bluetooth name **CMF Headphone Pro**. The app cannot select between multiple connected headphones with that name.
+
+After setup, the app reconnects its control service when macOS reports a new connection for the selected saved device. **Opening the app does not start a connection.** If the device was already connected, select it from **Devices** or select **Reconnect**.
+
+The selector changes the app control connection. It does not change the macOS audio output. **Forget this device** removes only the selected device.
+
+## Development
+
+CMF Headphone Pro uses the native Bluetooth Low Energy `FD90` control service. The local test device advertised RFCOMM channel 17, but that connection did not complete; BLE did.
+
+### Read-only device check
+
+Connect CMF Headphone Pro to your Mac, then run:
 
 ```sh
 ./scripts/check-headphone.sh
 ```
 
-This read-only check uses the app's Bluetooth manager and service. It reads firmware, serial number, battery, ANC, and EQ. It closes its BLE control connection after the check. It does not close the headphone audio connection or save app settings. Xcode or the Swift command-line tools are required.
+Requires Xcode or the Swift command-line tools. The check reads firmware, serial number, battery, ANC, and EQ through the app service. It closes only its BLE control connection and does not save app settings or close the audio connection.
 
-### Local validation
+### Validation
 
-- App build and four focused tests: passed.
-- Live device reads through the app service: passed.
-- ANC Low, Medium, High, Adaptive, Ambient, and Off: read back successfully. ANC High was restored.
-- EQ Balanced and More bass changes: previously read back successfully and restored.
-- Updated headphone panel: rendered and visually checked.
-- Native macOS connection event: tested without an app-start connection.
-- Menu bar appearance in macOS still requires a manual visual check.
+- App build and eight focused checks passed, including saved selection, switching, retry, and deletion.
+- Earlier live device reads and all noise control modes passed; ANC High was restored.
+- Earlier Balanced and More bass EQ changes were read back and restored.
+- The updated headphone panel was rendered and visually checked.
+- A native macOS reconnect event opened the control service; startup did not.
+- Neither device was connected for a live selector test. Ear (1) hardware was not available.
+- Menu bar appearance in macOS still needs a manual check.
 
-The product artwork and Nothing dot logo use assets from [Nothing’s product page](https://in.nothing.tech/products/cmf-headphone-pro/).
+## Screenshots
 
-Special credits to:
+<details>
+<summary>Ear (1) interface</summary>
 
-> swift-nothing-ear contributors for CMF Headphone Pro protocol references.
-Link: https://github.com/bestK1ngArthur/swift-nothing-ear
+These screenshots show the original Ear (1) interface.
 
+![Ear (1) home screen](assets/NothingX.png)
+![Equaliser](assets/Equaliser.png)
+![Earbud controls](assets/Controls.png)
+![Find My Buds](assets/FindMyBuds.png)
 
-> Ear (web) project developers for bluetooth communication code, it has been really helpful in developing of Nothing X Mac. 
-Link to Ear (web): https://earweb.bttl.xyz
+</details>
 
-> Arunavo Ray. The user interface of Nothing X Mac is based on his original work.
-Link to original repository: https://github.com/arunavo4/nothing-x-macos?ysclid=m7w2denfko175827967
+## Credits
 
+- [Arunavo Ray](https://github.com/arunavo4/nothing-x-macos) — original app and interface.
+- Daniel — upstream fork development.
+- [swift-nothing-ear contributors](https://github.com/bestK1ngArthur/swift-nothing-ear) — CMF Headphone Pro protocol references.
+- [Ear (web)](https://earweb.bttl.xyz) — Bluetooth communication references.
+- [Nothing](https://in.nothing.tech/products/cmf-headphone-pro/) — product artwork and dot logo assets.
 
-## UI Screenshots
+## License and legal notice
 
-<table>
-  <tr>
-  <td><img src="assets/NothingX.png" alt="NothingX"></td>
-    <td><img src="assets/Equaliser.png" alt="Equaliser"></td>
-  </tr>
-  <tr>
-    <td><img src="assets/Controls.png" alt="Controls"></td>
-    <td><img src="assets/FindMyBuds.png" alt="FindMyBuds"></td>
-  </tr>
-</table>
+See [LICENSE](LICENSE) for the GNU General Public License v3.0. The original project's legal notice is retained below.
 
-## LEGAL
+<details>
+<summary>Original legal notice</summary>
 
 The program and its corresponding code are distributed under the provisions of the GNU General Public License v3.0. (LICENSE)
 
 Any entities, including Nothing Technology Limited and its associated organizations, are legally licensed to use this application for all intents and purposes, encompassing commercial usage, devoid of any obligation to remunerate the software creator. Abidance by the GNU General Public License v3.0 is not mandated for Nothing Technology.
 
 This application has been crafted by Daniel (forked from Arunavo), and does not possess any association with, sponsorship from, or endorsement by Nothing Technology. The application's creator, Arunavo, bears no liability for the correctness or comprehensiveness of the materials and content delivered via this application. The elements incorporated within this application, such as text, graphics, logos, imagery, and audio-visual resources, are the exclusive property of Nothing Technology Limited, located at 80 Cheapside, London EC2V 6EE, and are safeguarded by copyright, trademark, and other intellectual property legislations. The use of these resources is prohibited without the explicit written consent of Nothing Technology. All rights pertaining to these resources are retained by Nothing Technology.
+
+</details>

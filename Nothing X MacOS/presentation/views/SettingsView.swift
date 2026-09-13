@@ -15,7 +15,7 @@ struct SettingsView: View {
     @State var bottomButtonText: String? = "Cancel"
     
     
-    @StateObject private var viewModel = SettingsViewViewModel(nothingService: NothingServiceImpl.shared, nothingRepository: NothingRepositoryImpl.shared)
+    @StateObject private var viewModel = SettingsViewViewModel(nothingService: NothingServiceImpl.shared)
     
     @EnvironmentObject private var mainViewModel: MainViewViewModel
     
@@ -63,11 +63,10 @@ struct SettingsView: View {
                                 // IN-EAR DETECT
                                 
                                 VStack(alignment: .leading) {
-                                    Toggle("In-ear detection", isOn: $viewModel.inEarSwitch)
-                                        .onChange(of: viewModel.inEarSwitch) { newValue in
-                                            // Call the function when the toggle changes
-                                            viewModel.switchInEarDetection(mode: newValue)
-                                        }
+                                    Toggle("In-ear detection", isOn: Binding(get: { viewModel.inEarSwitch }, set: {
+                                        viewModel.inEarSwitch = $0
+                                        viewModel.switchInEarDetection(mode: $0)
+                                    }))
                                     
                                     Text("Automatically play audio when earbuds are in and pause when removed.")
                                         .font(.system(size: 10, weight: .light))
@@ -77,11 +76,10 @@ struct SettingsView: View {
                                 .padding(.vertical, 6)
                                 
                                 VStack(alignment: .leading) {
-                                    Toggle("Low lag mode", isOn: $viewModel.latencySwitch)
-                                        .onChange(of: viewModel.latencySwitch) { newValue in
-                                            // Call the function when the toggle changes
-                                            viewModel.switchLatency(mode: newValue)
-                                        }
+                                    Toggle("Low lag mode", isOn: Binding(get: { viewModel.latencySwitch }, set: {
+                                        viewModel.latencySwitch = $0
+                                        viewModel.switchLatency(mode: $0)
+                                    }))
                                     
                                     Text("Minimize latency for an improved gaming experience.")
                                         .font(.system(size: 10, weight: .light))
@@ -182,6 +180,7 @@ struct SettingsView: View {
                             }
                         }
                         .buttonStyle(GreyButtonLarge())
+                        .disabled(mainViewModel.selectedDevice == nil)
                         .focusable(false)
                         .padding(.vertical, 16)
                     }
@@ -195,13 +194,8 @@ struct SettingsView: View {
             
             .background(.black)
             .frame(width: 250, height: 230)
-            .onAppear {
-                if let device = mainViewModel.nothingDevice {
-                    print("Settings View latency \(device.isLowLatencyOn)")
-                    print("Settings View in ear \(device.isInEarDetectionOn)")
-                    viewModel.inEarSwitch = device.isInEarDetectionOn
-                    viewModel.latencySwitch = device.isLowLatencyOn
-                }
+            .onReceive(mainViewModel.$nothingDevice) { device in
+                viewModel.showDevice(device ?? mainViewModel.selectedDevice, isAccessible: device != nil)
             }
             if viewModel.shouldShowForgetDialog {
                 Color.black.opacity(0.4) // Background dimming
@@ -219,7 +213,7 @@ struct SettingsView: View {
                     //notify app that there is no devices saved anymore
                     
                     withAnimation {
-                        viewModel.forgetDevice()
+                        mainViewModel.forgetSelectedDevice()
                         viewModel.shouldShowForgetDialog = false
                     }
 
@@ -235,8 +229,7 @@ struct SettingsView: View {
 
 struct SettingsView_Previews: PreviewProvider {
     
-    @State private var viewModel = SettingsViewViewModel(nothingService: NothingServiceImpl.shared,
-                                                         nothingRepository: NothingRepositoryImpl.shared)
+    @State private var viewModel = SettingsViewViewModel(nothingService: NothingServiceImpl.shared)
     
     static var previews: some View {
         

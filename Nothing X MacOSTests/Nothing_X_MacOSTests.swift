@@ -60,17 +60,144 @@ final class Nothing_X_MacOSTests: XCTestCase {
         XCTAssertEqual(skuFromFirmware(firmware: ""), .UNKNOWN)
         XCTAssertEqual(skuFromSerial(serial: "SHxxZZ"), .UNKNOWN)
     }
+    private func makeDefaults() -> UserDefaults {
+        let name = "nothing-x-selection-test-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: name)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: name) }
+        return defaults
+    }
+
+    private func savedDevice(_ name: String, mac: String) -> NothingDeviceEntity {
+        let details = BluetoothDeviceEntity(name: name, mac: mac, channelId: 15, isPaired: true, isConnected: true)
+        let device = NothingDeviceFDTO(bluetoothDetails: details)
+        if name != "CMF Headphone Pro" { device.codename = .ONE }
+        return NothingDeviceFDTO.toEntity(device)
+    }
+
+    @MainActor
+    func testSwitchUsesSelectedDeviceAndRejectsOldUpdates() {
+        let center = NotificationCenter()
+        let headphone = savedDevice("CMF Headphone Pro", mac: "headphone")
+        let earbud = savedDevice("Ear (1)", mac: "earbud")
+        let repo = ConnectionRepository(saved: [earbud, headphone], notificationCenter: center)
+        let service = ConnectionService(notificationCenter: center)
+        let bluetooth = ConnectionBluetooth()
+        let model = MainViewViewModel(bluetoothService: bluetooth, nothingRepository: repo, nothingService: service, selectionDefaults: makeDefaults(), notificationCenter: center)
+        headphone.leftBattery = 80
+        headphone.isLeftConnected = true
+        center.post(name: Notification.Name(DataNotifications.REPOSITORY_DATA_UPDATED.rawValue), object: headphone)
+        model.headphoneANC = .ON_HIGH
+        XCTAssertEqual(model.menuBattery, 80)
+        bluetooth.controlConnected = true
+        model.selectDevice(mac: earbud.bluetoothDetails.mac)
+        XCTAssertEqual(service.events.prefix(2), ["disconnect", "connect:earbud"])
+        XCTAssertEqual(model.selectedDeviceMAC, "earbud")
+        XCTAssertFalse(model.usesHeadphoneLayout)
+        XCTAssertNil(model.nothingDevice)
+        XCTAssertNil(model.menuBattery)
+        XCTAssertNil(model.headphoneANC)
+        center.post(name: Notification.Name(DataNotifications.REPOSITORY_DATA_UPDATED.rawValue), object: headphone)
+        XCTAssertNil(model.nothingDevice, "The previous device must not restore its controls")
+        earbud.leftBattery = 50; earbud.rightBattery = 100
+        earbud.isLeftConnected = true; earbud.isRightConnected = true
+        center.post(name: Notification.Name(DataNotifications.REPOSITORY_DATA_UPDATED.rawValue), object: earbud)
+        center.post(name: Notification.Name(BluetoothNotifications.OPENED_RFCOMM_CHANNEL.rawValue), object: nil)
+        XCTAssertEqual(model.nothingDevice?.bluetoothDetails.mac, "earbud")
+        XCTAssertEqual(model.menuBattery, 75)
+        model.selectDevice(mac: "headphone")
+        XCTAssertTrue(model.usesHeadphoneLayout)
+        XCTAssertEqual(service.connections.map(\.mac), ["earbud", "headphone"])
+        center.post(name: Notification.Name(BluetoothNotifications.FAILED_TO_CONNECT.rawValue), object: nil)
+        model.reconnectSelectedDevice()
+        XCTAssertEqual(service.connections.last?.mac, "headphone")
+    }
+
+    @MainActor
+    func testSelectionIsRememberedAndOtherConnectionsAreIgnored() {
+        let center = NotificationCenter()
+        let headphone = savedDevice("CMF Headphone Pro", mac: "headphone")
+        let earbud = savedDevice("Ear (1)", mac: "earbud")
+        let repo = ConnectionRepository(saved: [headphone, earbud], notificationCenter: center)
+        let service = ConnectionService(notificationCenter: center)
+        let bluetooth = ConnectionBluetooth()
+        let defaults = makeDefaults()
+        var model: MainViewViewModel? = MainViewViewModel(bluetoothService: bluetooth, nothingRepository: repo, nothingService: service, selectionDefaults: defaults, notificationCenter: center)
+        model?.selectDevice(mac: "earbud")
+        model = nil
+        let restored = MainViewViewModel(bluetoothService: bluetooth, nothingRepository: repo, nothingService: service, selectionDefaults: defaults, notificationCenter: center)
+        XCTAssertEqual(restored.selectedDeviceMAC, "earbud")
+        XCTAssertEqual(service.connections.count, 1, "Restoring selection must not connect on startup")
+        center.post(name: Notification.Name(BluetoothNotifications.SYSTEM_DEVICE_CONNECTED.rawValue), object: headphone.bluetoothDetails)
+        XCTAssertEqual(service.connections.count, 1)
+        center.post(name: Notification.Name(BluetoothNotifications.SYSTEM_DEVICE_CONNECTED.rawValue), object: earbud.bluetoothDetails)
+        XCTAssertEqual(service.connections.map(\.mac), ["earbud", "earbud"])
+        center.post(name: Notification.Name(Notifications.REQUEST_RETRY.rawValue), object: nil)
+        XCTAssertEqual(service.connections.count, 2, "A pending connection must not be duplicated")
+        withExtendedLifetime(restored) {}
+    }
+
+    @MainActor
+    func testForgetRemovesOnlyTheSelectedDevice() {
+        let center = NotificationCenter()
+        let headphone = savedDevice("CMF Headphone Pro", mac: "headphone")
+        let earbud = savedDevice("Ear (1)", mac: "earbud")
+        let repo = ConnectionRepository(saved: [headphone, earbud], notificationCenter: center)
+        let service = ConnectionService(notificationCenter: center)
+        let defaults = makeDefaults()
+        let model = MainViewViewModel(bluetoothService: ConnectionBluetooth(), nothingRepository: repo, nothingService: service, selectionDefaults: defaults, notificationCenter: center)
+        model.selectDevice(mac: "earbud")
+        model.forgetSelectedDevice()
+        XCTAssertEqual(repo.saved.map { $0.bluetoothDetails.mac }, ["headphone"])
+        XCTAssertEqual(model.selectedDeviceMAC, "headphone")
+        XCTAssertEqual(defaults.string(forKey: "selectedDeviceMAC"), "headphone")
+        XCTAssertEqual(service.connections.count, 1, "Forgetting a device must not connect the fallback device")
+        model.forgetSelectedDevice()
+        XCTAssertTrue(repo.saved.isEmpty)
+        XCTAssertNil(model.selectedDeviceMAC)
+        XCTAssertNil(defaults.string(forKey: "selectedDeviceMAC"))
+        XCTAssertTrue(model.isSettingUpDevice)
+        XCTAssertEqual(service.connections.count, 1)
+
+    }
+
+    @MainActor
+    func testSetupKeepsSavedDevicesAndAdoptsNewConnection() {
+        let center = NotificationCenter()
+        let headphone = savedDevice("CMF Headphone Pro", mac: "headphone")
+        let repo = ConnectionRepository(saved: [headphone], notificationCenter: center)
+        let service = ConnectionService(notificationCenter: center)
+        let model = MainViewViewModel(bluetoothService: ConnectionBluetooth(), nothingRepository: repo, nothingService: service, selectionDefaults: makeDefaults(), notificationCenter: center)
+        model.startDeviceSetup()
+        center.post(name: Notification.Name(BluetoothNotifications.SYSTEM_DEVICE_CONNECTED.rawValue), object: headphone.bluetoothDetails)
+        center.post(name: Notification.Name(DataNotifications.REPOSITORY_DATA_UPDATED.rawValue), object: headphone)
+        XCTAssertTrue(model.isSettingUpDevice)
+        XCTAssertNil(model.nothingDevice)
+        XCTAssertTrue(service.connections.isEmpty)
+        let discovered = NothingDeviceFDTO(bluetoothDetails: BluetoothDeviceEntity(name: "Ear (1)", mac: "earbud", channelId: 15, isPaired: true, isConnected: true))
+        discovered.codename = .ONE
+        center.post(name: Notification.Name(DataNotifications.CONNECTED.rawValue), object: discovered)
+        XCTAssertEqual(model.selectedDeviceMAC, "earbud")
+        XCTAssertEqual(Set(model.savedDevices.map { $0.bluetoothDetails.mac }), ["headphone", "earbud"])
+        XCTAssertFalse(model.isSettingUpDevice)
+        XCTAssertFalse(model.usesHeadphoneLayout)
+        let settings = SettingsViewViewModel(nothingService: service)
+        settings.showDevice(model.selectedDevice, isAccessible: false)
+        XCTAssertEqual(settings.mac, "earbud")
+        XCTAssertFalse(settings.isNothingDeviceAccessible)
+    }
+
     @MainActor
     func testMacOSConnectionOnlyReconnectsSavedHeadphones() {
+        let center = NotificationCenter()
         let details = BluetoothDeviceEntity(name: "CMF Headphone Pro", mac: "00:11:22:33:44:55", channelId: 15, isPaired: true, isConnected: true)
         let saved = NothingDeviceFDTO.toEntity(NothingDeviceFDTO(bluetoothDetails: details))
-        let repository = ConnectionRepository(saved: [saved])
-        let service = ConnectionService()
+        let repository = ConnectionRepository(saved: [saved], notificationCenter: center)
+        let service = ConnectionService(notificationCenter: center)
         let bluetooth = ConnectionBluetooth()
-        let model = MainViewViewModel(bluetoothService: bluetooth, nothingRepository: repository, nothingService: service)
+        let model = MainViewViewModel(bluetoothService: bluetooth, nothingRepository: repository, nothingService: service, selectionDefaults: makeDefaults(), notificationCenter: center)
         XCTAssertTrue(service.connections.isEmpty, "Opening the app must not initiate a connection")
         func report(_ device: BluetoothDeviceEntity) {
-            NotificationCenter.default.post(name: Notification.Name(BluetoothNotifications.SYSTEM_DEVICE_CONNECTED.rawValue), object: device)
+            center.post(name: Notification.Name(BluetoothNotifications.SYSTEM_DEVICE_CONNECTED.rawValue), object: device)
         }
         let unrelated = BluetoothDeviceEntity(name: details.name, mac: "AA:BB:CC:DD:EE:FF", channelId: 15, isPaired: true, isConnected: true)
         report(unrelated)
@@ -93,18 +220,31 @@ private final class ConnectionBluetooth: BluetoothService {
 }
 
 private final class ConnectionRepository: NothingRepository {
-    let saved: [NothingDeviceEntity]
-    init(saved: [NothingDeviceEntity]) { self.saved = saved }
+    var saved: [NothingDeviceEntity]
+    let notificationCenter: NotificationCenter
+    init(saved: [NothingDeviceEntity], notificationCenter: NotificationCenter) {
+        self.saved = saved
+        self.notificationCenter = notificationCenter
+    }
     func getSaved() -> [NothingDeviceEntity] { saved }
-    func save(device: NothingDeviceEntity) {}
-    func delete(device: NothingDeviceEntity) {}
+    func save(device: NothingDeviceEntity) {
+        saved.removeAll { $0.bluetoothDetails.mac == device.bluetoothDetails.mac }
+        saved.append(device)
+    }
+    func delete(device: NothingDeviceEntity) {
+        saved.removeAll { $0.bluetoothDetails.mac == device.bluetoothDetails.mac }
+        notificationCenter.post(name: Notification.Name(RepositoryNotifications.CONFIGURATION_DELETED.rawValue), object: device.bluetoothDetails)
+    }
     func contains(mac: String) -> Bool { saved.contains { $0.bluetoothDetails.mac == mac } }
     func delete(mac: String) {}
 }
 
 private final class ConnectionService: NothingService {
     var connections: [BluetoothDeviceEntity] = []
-    func connectToNothing(device: BluetoothDeviceEntity) { connections.append(device) }
+    var events: [String] = []
+    let notificationCenter: NotificationCenter
+    init(notificationCenter: NotificationCenter) { self.notificationCenter = notificationCenter }
+    func connectToNothing(device: BluetoothDeviceEntity) { connections.append(device); events.append("connect:" + device.mac) }
     func ringBuds() {}
     func stopRingingBuds() {}
     func switchANC(mode: ANC) {}
@@ -117,5 +257,8 @@ private final class ConnectionService: NothingService {
     func switchLowLatency(mode: Bool) {}
     func switchInEarDetection(mode: Bool) {}
     func switchGesture(device: DeviceType, gesture: GestureType, action: UInt8) {}
-    func disconnect() {}
+    func disconnect() {
+        events.append("disconnect")
+        notificationCenter.post(name: Notification.Name(BluetoothNotifications.CLOSED_RFCOMM_CHANNEL.rawValue), object: nil)
+    }
 }
