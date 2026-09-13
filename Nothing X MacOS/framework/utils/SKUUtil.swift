@@ -84,6 +84,10 @@ func codenameFromSKU(sku: SKU) -> Codenames {
         return .ESPEON
     case .ESPEON_BLACK_3:
         return .ESPEON
+    case .CMF_HEADPHONE_PRO_DARK_GREY, .CMF_HEADPHONE_PRO_LIGHT_GREY,
+         .CMF_HEADPHONE_PRO_LIGHT_GREEN, .CMF_HEADPHONE_PRO_DARK_GREY_ALTERNATE,
+         .CMF_HEADPHONE_PRO_LIGHT_GREY_ALTERNATE, .CMF_HEADPHONE_PRO_LIGHT_GREEN_ALTERNATE:
+        return .CMF_HEADPHONE_PRO
     case .FLAFFY_WHITE:
         return .FLAFFY
     default:
@@ -94,7 +98,7 @@ func codenameFromSKU(sku: SKU) -> Codenames {
 
 func skuFromFirmware(firmware: String) -> SKU {
     
-    if (firmware.split(separator: ".")[1] == "6700") {
+    if firmware.split(separator: ".").dropFirst().first == "6700" {
         return SKU.EAR_1_WHITE
     }
 
@@ -124,7 +128,7 @@ func skuFromSerial(serial: String) -> SKU {
             return SKU.FLAFFY_WHITE
         }
     } else if headSerial == "SH" || headSerial == "13" {
-        return SKU(rawValue: String(serial.prefix(6).suffix(2)))! // Get characters at index 4 and 5
+        return SKU(rawValue: String(serial.prefix(6).suffix(2))) ?? .UNKNOWN // Get characters at index 4 and 5
     }
     
     return SKU.UNKNOWN

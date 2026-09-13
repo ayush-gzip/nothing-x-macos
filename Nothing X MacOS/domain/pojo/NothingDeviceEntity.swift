@@ -10,6 +10,8 @@ class NothingDeviceEntity : Codable, ObservableObject {
     
     let name: String
     let serial: String
+    var isHeadphonePro: Bool { codename == .CMF_HEADPHONE_PRO }
+
     let codename: Codenames
     let firmware: String
     let sku: SKU

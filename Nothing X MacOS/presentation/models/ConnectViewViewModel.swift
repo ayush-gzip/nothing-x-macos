@@ -13,6 +13,7 @@ class ConnectViewViewModel : ObservableObject {
     private let nothingRepository: NothingRepository
     private let nothingService: NothingService
     
+    var savedDevice: NothingDeviceEntity? { nothingRepository.getSaved().first }
     @Published var isLoading = false
     @Published var isFailedToConnectPresented = false
     @Published var retry = false
@@ -65,7 +66,8 @@ class ConnectViewViewModel : ObservableObject {
         isLoading = true
         let devices = nothingRepository.getSaved()
         
-        nothingService.connectToNothing(device: devices[0].bluetoothDetails)
+        guard let device = devices.first else { isLoading = false; return }
+        nothingService.connectToNothing(device: device.bluetoothDetails)
     }
     
     

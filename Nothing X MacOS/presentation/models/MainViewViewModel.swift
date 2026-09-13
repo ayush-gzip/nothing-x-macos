@@ -25,6 +25,19 @@ class MainViewViewModel : ObservableObject {
     
     @Published var nothingDevice: NothingDeviceEntity?
 
+    @Published var headphoneANC: ANC?
+    @Published var headphoneEQ: EQProfiles?
+
+    var usesHeadphoneLayout: Bool {
+        (nothingDevice ?? nothingRepository.getSaved().first)?.isHeadphonePro == true
+    }
+
+    var menuBattery: Double? {
+        if nothingDevice?.isHeadphonePro == true { return leftBattery }
+        guard let leftBattery = leftBattery, let rightBattery = rightBattery else { return nil }
+        return (leftBattery + rightBattery) / 2
+    }
+
     @Published var eqProfiles: EQProfiles = .BALANCED
     @Published var navigationPath = NavigationPath()
     
@@ -43,9 +56,22 @@ class MainViewViewModel : ObservableObject {
         self.disconnectDeviceUseCase = DisconnectDeviceUseCase(nothingService: nothingService)
         self.getSavedDevicesUseCase = GetSavedDevicesUseCase(nothingRepository: nothingRepository)
  
+        NotificationCenter.default.addObserver(forName: Notification.Name(BluetoothNotifications.SYSTEM_DEVICE_CONNECTED.rawValue), object: nil, queue: .main) { [weak self] notification in
+            guard let self = self, !self.bluetoothService.isDeviceConnected(),
+                  let connected = notification.object as? BluetoothDeviceEntity,
+                  connected.isConnected,
+                  let saved = self.nothingRepository.getSaved().first(where: {
+                      $0.isHeadphonePro && $0.bluetoothDetails.mac == connected.mac
+                  }) else { return }
+            nothingService.connectToNothing(device: saved.bluetoothDetails)
+        }
+
         NotificationCenter.default.addObserver(forName: Notification.Name(BluetoothNotifications.CLOSED_RFCOMM_CHANNEL.rawValue), object: nil, queue: .main) {
             notification in
                         
+            self.headphoneANC = nil
+            self.headphoneEQ = nil
+            self.nothingDevice = nil
             self.leftBattery = nil
             self.rightBattery = nil
             
@@ -67,6 +93,19 @@ class MainViewViewModel : ObservableObject {
         }
         
         
+        NotificationCenter.default.addObserver(forName: Notification.Name(DataNotifications.DATA_RECEIVED.rawValue), object: nil, queue: .main) { notification in
+            guard self.nothingDevice?.isHeadphonePro == true,
+                  let bytes = notification.userInfo?["data"] as? [UInt8] else { return }
+            let packet = NothingPacket(bytes: bytes)
+            switch packet.command {
+            case 16414, 57347: self.headphoneANC = ANC(rawValue: packet.payload[1])
+            case 16415, 16464:
+                let value = packet.payload.count > 1 ? packet.payload[1] : packet.payload[0]
+                self.headphoneEQ = EQProfiles(rawValue: value) ?? .OTHER
+            default: break
+            }
+        }
+
         NotificationCenter.default.addObserver(forName: Notification.Name(RepositoryNotifications.CONFIGURATION_DELETED.rawValue), object: nil, queue: .main) {
             notification in
             
@@ -93,8 +132,8 @@ class MainViewViewModel : ObservableObject {
                 
                 self.jsonEncoder.addOrUpdateDevice(device.toDTO())
                 
-                self.rightBattery = Double(device.rightBattery)
-                self.leftBattery = Double(device.leftBattery)
+                self.rightBattery = device.isRightConnected ? Double(device.rightBattery) : nil
+                self.leftBattery = device.isLeftConnected ? Double(device.leftBattery) : nil
             }
         }
         

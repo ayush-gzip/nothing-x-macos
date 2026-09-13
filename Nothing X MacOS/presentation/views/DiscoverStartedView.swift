@@ -163,7 +163,13 @@ struct DiscoverStartedView: View {
                             }
                             
                             
-                            Image("ear_1")
+                            Group {
+                                if viewModel.isHeadphonePro {
+                                    Image("cmf_headphone_pro").resizable().scaledToFit().frame(width: 109, height: 119)
+                                } else {
+                                    Image("ear_1")
+                                }
+                            }
                                 .scaledToFit()
                                 .scaleEffect(viewModel.budsScale)
                                 .offset(x: viewModel.budsOffsetX, y: viewModel.budsOffsetY)

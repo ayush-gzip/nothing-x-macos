@@ -52,7 +52,7 @@ struct SettingsView: View {
                         
                         VStack(alignment: .leading) {
                         
-                        if viewModel.isNothingDeviceAccessible {
+                        if viewModel.isNothingDeviceAccessible && mainViewModel.nothingDevice?.isHeadphonePro != true {
                             
                      
                                 Text("Advanced features")

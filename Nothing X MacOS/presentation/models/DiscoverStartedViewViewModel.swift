@@ -19,6 +19,7 @@ class DiscoverStartedViewViewModel : ObservableObject {
     
     @Published var viewState: DiscoverStates = .not_discovering
     
+    @Published var isHeadphonePro = false
     @Published var deviceName: String = ""
     @Published var discoveryCirclesOffset: CGFloat = 0 //-60 when found
     @Published var shouldShowDevice = false
@@ -61,11 +62,12 @@ class DiscoverStartedViewViewModel : ObservableObject {
                     
                     self.viewState = .found
                     self.discoveredDevice = bluetoothDevice
+                    self.isHeadphonePro = bluetoothDevice.name.lowercased() == "cmf headphone pro"
                     var deviceName = bluetoothDevice.name
                     let components = deviceName.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
                     
                     // Check if there are components after the first space
-                    if components.count > 1 {
+                    if components.count > 1 && !self.isHeadphonePro {
                         // Join the components after the first one
                         deviceName = components[1...].joined(separator: " ")
                     }

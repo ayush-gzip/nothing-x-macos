@@ -6,6 +6,7 @@
 //
 
 enum Codenames : String, Codable {
+    case CMF_HEADPHONE_PRO = "B175"
     case UNKNOWN = "0000"
     case ONE = "B181"
     case STICKS = "B157"

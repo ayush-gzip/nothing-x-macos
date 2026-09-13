@@ -91,6 +91,10 @@ class NothingDeviceFDTO: ObservableObject {
      
     init(bluetoothDetails: BluetoothDeviceEntity) {
         self.bluetoothDetails = bluetoothDetails
+        self.name = bluetoothDetails.name
+        if bluetoothDetails.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cmf headphone pro" {
+            self.codename = .CMF_HEADPHONE_PRO
+        }
     }
     
     private func notifyDataUpdated() {

@@ -1,10 +1,52 @@
 # Nothing X MacOS [Unofficial]
 
-This is a companion app for Nothing Ear (1) for MacOS. The Nothing X iOS App inspired it.
+This is an unofficial companion app for Nothing Ear (1) and CMF Headphone Pro on macOS. The Nothing X iOS app inspired it.
 
-> Note: The app is under early development. Bluetooth bug fixes and UI optimisations are under way. Feel free to poke around. So far tested only with Nothing Ear (1).
+> Note: The app is under early development. Ear (1) was tested by the original developers. CMF Headphone Pro device communication was tested locally on firmware 1.0.1.49. Other models are not verified.
+
+## CMF Headphone Pro
+
+The app uses the native Bluetooth Low Energy FD90 control service. The headphones on the test Mac advertised RFCOMM channel 17, but that connection did not complete. BLE connected and returned device data.
+
+Implemented:
+- One headphone battery level and charging status.
+- Device name, serial number, and firmware version.
+- Noise control: ANC Low, Medium, High, and Adaptive; Ambient and Off.
+- EQ presets: Balanced, More bass, More treble, and Voice.
+- CMF Headphone Pro artwork and a Nothing logo with one battery value in the menu bar.
+- Automatic control connection when macOS reports that the saved headphones connected. Opening the app does not initiate a connection; use Reconnect if they were already connected before app startup.
+
+The app hides earbud gesture controls and advanced settings for this model. Custom EQ, genre presets, sound calibration, and firmware updates are not implemented. Presets that the app cannot display do not appear as Balanced.
+
+Keep the Bluetooth name `CMF Headphone Pro` for model detection. This connection path selects one connected headphone with that name; it does not select between several headphones with the same name.
+
+### Device check
+
+With CMF Headphone Pro connected to the Mac, run:
+
+```sh
+./scripts/check-headphone.sh
+```
+
+This read-only check uses the app's Bluetooth manager and service. It reads firmware, serial number, battery, ANC, and EQ. It closes its BLE control connection after the check. It does not close the headphone audio connection or save app settings. Xcode or the Swift command-line tools are required.
+
+### Local validation
+
+- App build and four focused tests: passed.
+- Live device reads through the app service: passed.
+- ANC Low, Medium, High, Adaptive, Ambient, and Off: read back successfully. ANC High was restored.
+- EQ Balanced and More bass changes: previously read back successfully and restored.
+- Updated headphone panel: rendered and visually checked.
+- Native macOS connection event: tested without an app-start connection.
+- Menu bar appearance in macOS still requires a manual visual check.
+
+The product artwork and Nothing dot logo use assets from [Nothing’s product page](https://in.nothing.tech/products/cmf-headphone-pro/).
 
 Special credits to:
+
+> swift-nothing-ear contributors for CMF Headphone Pro protocol references.
+Link: https://github.com/bestK1ngArthur/swift-nothing-ear
+
 
 > Ear (web) project developers for bluetooth communication code, it has been really helpful in developing of Nothing X Mac. 
 Link to Ear (web): https://earweb.bttl.xyz

@@ -10,6 +10,7 @@ import Foundation
 
 enum BluetoothNotifications : String {
     
+    case SYSTEM_DEVICE_CONNECTED = "SYSTEM_DEVICE_CONNECTED"
     case CONNECTED = "CONNECTED"
     case FAILED_TO_CONNECT = "FAILED_TO_CONNECT"
     case OPENED_RFCOMM_CHANNEL = "OPENED_RFCOMM_CHANNEL"

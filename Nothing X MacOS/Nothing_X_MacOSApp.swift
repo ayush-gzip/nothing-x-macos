@@ -48,18 +48,19 @@ struct Nothing_X_MacOSApp: App {
             .environmentObject(store)
             .environmentObject(viewModel)
             .environmentObject(budsPickerViewModel)
-            .frame(width: 250, height: 230)
+            .frame(width: viewModel.usesHeadphoneLayout ? 280 : 250, height: viewModel.usesHeadphoneLayout ? 340 : 230)
         
             
         } label: {
             
-            if (viewModel.rightBattery != nil && viewModel.rightBattery != nil) {
-                Label("\(Double((viewModel.leftBattery ?? 0.0) + (viewModel.rightBattery ?? 0.0)) / 2.0, specifier: "%.0f")%", image: "nothing.ear.1")
-                    .labelStyle(.titleAndIcon)
-            } else {
-                Label("", image: "nothing.ear.1")
-                    .labelStyle(.titleAndIcon)
+            HStack(spacing: 5) {
+                Image("nothing_logo")
+                    .renderingMode(.template)
+                if let battery = viewModel.menuBattery {
+                    Text("\(Int(battery))%")
+                }
             }
+            .accessibilityLabel("Nothing X")
 
         }
         .menuBarExtraStyle(.window)

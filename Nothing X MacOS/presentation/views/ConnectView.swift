@@ -26,20 +26,25 @@ struct ConnectView: View {
             
             // ear (1)
             
-            HStack {
-                DeviceNameDotTextView()
-                Spacer()
+            if viewModel.savedDevice?.isHeadphonePro != true {
+                HStack {
+                    DeviceNameDotTextView()
+                    Spacer()
+                }
+                .padding(.bottom, 4)
+                .zIndex(1)
             }
-            .padding(.bottom, 4)
-            .zIndex(1)
             
             
             
             VStack {
                 
                 HStack {
+                    if viewModel.savedDevice?.isHeadphonePro == true {
+                        Text("CMF Headphone Pro").font(.system(size: 12, weight: .medium)).foregroundColor(.white)
+                            .padding(.leading, 14)
+                    }
                     Spacer()
-                    
                     // Settings
                     SettingsButtonView()
                     
@@ -49,13 +54,21 @@ struct ConnectView: View {
                 
                 VStack {
                     // Ear 1 Image
+                    if viewModel.savedDevice?.isHeadphonePro == true {
+                        Image("cmf_headphone_pro")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 150)
+                            .accessibilityLabel("CMF Headphone Pro")
+                    } else {
                     Image("ear_1")
                         .overlay(
                             LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0.0), Color.black.opacity(0.8)]), startPoint: .top, endPoint: .bottom)
-                                .blendMode(.darken) // Blend mode to darken the image
+                                .blendMode(SwiftUI.BlendMode.darken) // Blend mode to darken the image
                         )
                     
                     
+                    }
                     Spacer(minLength: 15)
                     
                     if viewModel.isLoading {
@@ -113,7 +126,7 @@ struct ConnectView: View {
         
         .padding(.bottom, 0)
         .background(.black)
-        .frame(width: 250,height: 230)
+        .frame(width: viewModel.savedDevice?.isHeadphonePro == true ? 280 : 250, height: viewModel.savedDevice?.isHeadphonePro == true ? 340 : 230)
         .navigationBarBackButtonHidden(true)
         
     }
